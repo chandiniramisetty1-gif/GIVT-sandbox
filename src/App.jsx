@@ -177,26 +177,61 @@ function extractCompany(text, opts) {
   if (!text) return "";
   const t = sanitize(text);
   const endAlt = ORG_ENDINGS.map(escapeReg).sort((a, b) => b.length - a.length).join("|");
+  // Match a capitalized phrase ending in an org word. Use [ \t] (not \s) so a match
+  // never spans line breaks and splices unrelated sections together, and require the
+  // org ending to be a whole word ((?![A-Za-z]) stops "Clinic" matching inside
+  // "Clinical").
   const re = new RegExp(
-    "([A-Z][A-Za-z&.'\\-]+(?:\\s+[A-Z][A-Za-z&.'\\-]+){0,4}\\s+(?:" + endAlt + "))",
+    "([A-Z][A-Za-z&.'\\-]+(?:[ \\t]+[A-Z][A-Za-z&.'\\-]+){0,4}[ \\t]+(?:" + endAlt + ")(?![A-Za-z]))",
     "g"
   );
+  const cleanName = (raw) => {
+    let name = raw.replace(/\s+/g, " ").trim();
+    while (LEADIN.test(name)) name = name.replace(LEADIN, "");
+    name = name.replace(/^(The|A|An)\s+/i, "").trim();
+    return name.split(" ").length >= 2 && name.length <= 60 ? name : "";
+  };
+  const dedupeFirst = (arr) => {
+    const seen = new Set();
+    return arr.filter((h) => { const k = h.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  };
+
+  if (opts && opts.preferFirst) {
+    // Résumé: the applicant's name occupies the first non-empty line — never report it.
+    // Scan line-by-line, tracking the résumé section, and prefer an actual employer (from
+    // the experience section) over the school named under education. This avoids both the
+    // name header (e.g. "Maya Osei" spliced with "Health Informatics") and the candidate's
+    // university being mistaken for the employer "Emory Healthcare".
+    const lines = t.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const SECTION = /^.{0,40}$/;                                            // headers are short
+    const EXP = /\b(experience|employment|work history|professional|internships?|positions?|roles?)\b/i;
+    const EDU = /\b(education|academic|coursework|degrees?)\b/i;
+    const expHits = [];
+    const otherHits = [];
+    let section = "";
+    lines.forEach((line, i) => {
+      if (i === 0) return;                                                 // name/header line
+      if (SECTION.test(line) && EXP.test(line)) section = "exp";
+      else if (SECTION.test(line) && EDU.test(line)) section = "edu";
+      let m;
+      re.lastIndex = 0;
+      while ((m = re.exec(line)) !== null) {
+        const name = cleanName(m[1]);
+        if (name) (section === "exp" ? expHits : otherHits).push(name);
+      }
+    });
+    const pick = dedupeFirst(expHits.length ? expHits : otherHits);
+    return pick[0] || "";
+  }
+
+  // JD: prefer the longest unique hit (captures "Emory Healthcare Center").
   const hits = [];
   let m;
   while ((m = re.exec(t)) !== null) {
-    let name = m[1].replace(/\s+/g, " ").trim();
-    while (LEADIN.test(name)) name = name.replace(LEADIN, "");
-    name = name.replace(/^(The|A|An)\s+/i, "").trim();
-    if (name.split(" ").length >= 2 && name.length <= 60) hits.push(name);
+    const name = cleanName(m[1]);
+    if (name) hits.push(name);
   }
   if (!hits.length) return "";
-  if (opts && opts.preferFirst) {
-    // résumé: the first prominent employer (most-recent role usually appears first)
-    const seen = new Set();
-    const ordered = hits.filter((h) => { const k = h.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
-    return ordered[0];
-  }
-  // JD: prefer the longest unique hit (captures "Emory Healthcare Center")
   hits.sort((a, b) => b.length - a.length);
   return hits[0];
 }
