@@ -1406,6 +1406,23 @@ function ReputationAgent({ S }) {
     ? Math.round((allVerifs.reduce((a, v) => a + ROLE_META[v.role].weight * (v.confidence === 1 ? 1 : 0.5), 0) / allVerifs.length) * 100)
     : 0;
   const composite = Math.round(Math.sqrt(reputation * vStatus));
+  const scoreBreakdown = {
+  verifiedSkills: allVerifs.length,
+  weightedTokens: weightedTokens,
+  reputationScore: reputation,
+  verificationStatus: vStatus,
+  compositeScore: composite
+};
+
+const highConfidence = allVerifs.filter(v => v.confidence === "C1").length;
+const mediumConfidence = allVerifs.filter(v => v.confidence === "C2").length;
+const lowConfidence = allVerifs.filter(v => v.confidence === "C3").length;
+
+const verificationHistory = allVerifs.map((v) => ({
+  skill: v.skill,
+  role: v.role,
+  confidence: v.confidence
+}));
 
   useEffect(() => {
     S.setUserMetrics({ reputation, verification: vStatus, tokens: S.studentTokens });
@@ -1524,6 +1541,25 @@ function ReputationAgent({ S }) {
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12.5, color: C.inkSoft }}>
           Student tokens: <strong>{S.studentTokens}</strong> · Verifier points — {Object.keys(ROLE_META).map((r) => r + ": " + (S.verifierLedger[r]?.points || 0)).join(" · ")}
         </div>
+        <div style={{
+  marginTop: 20,
+  padding: 12,
+  border: "1px solid #ddd",
+  borderRadius: 8
+}}>
+  <h4>Score Calculation Breakdown</h4>
+
+  <p>Verified Skills: {scoreBreakdown.verifiedSkills}</p>
+
+  <p>Weighted Tokens: {scoreBreakdown.weightedTokens}</p>
+
+  <p>Reputation Score: {scoreBreakdown.reputationScore}%</p>
+
+  <p>Verification Status: {scoreBreakdown.verificationStatus}%</p>
+
+  <p>Composite Score: {scoreBreakdown.compositeScore}</p>
+</div>
+
       </Panel>
 
       {showLeaderboard && (
