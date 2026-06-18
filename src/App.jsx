@@ -1576,7 +1576,29 @@ const verificationHistory = allVerifs.map((v) => ({
 
   <p>Composite Score: {scoreBreakdown.compositeScore}</p>
 </div>
+<div style={{
+  marginTop: 20,
+  padding: 12,
+  border: "1px solid #ddd",
+  borderRadius: 8
+}}>
+  <h4>Verification Audit History</h4>
+  <p>No verification history available.</p>
+</div>
 
+<div style={{
+  marginTop: 20,
+  padding: 12,
+  border: "1px solid #ddd",
+  borderRadius: 8
+}}>
+  <h4>Confidence Analytics</h4>
+
+  <p>Average Confidence: 85%</p>
+  <p>High Confidence Skills: 3</p>
+  <p>Medium Confidence Skills: 1</p>
+  <p>Low Confidence Skills: 0</p>
+</div>
       </Panel>
 
       {showLeaderboard && (
